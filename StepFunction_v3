@@ -1,0 +1,158 @@
+{
+    "Comment": "Launch instance, Sysprep, and create AMI",
+    "StartAt": "get-asg-and-launch-template",
+    "States": {
+      "5Nov": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:eu-west-1:321468727688:function:get-asg-and-launch-template",
+        "Parameters": {
+          "backupJobId.$": "$.backupJobId",
+          "setMaxCapacityEqualToDesiredCapacity": true
+        },
+        "Next": "LaunchInstance",
+        "ResultPath": "$.ASGAndLaunchTemplate"
+      },
+      "LaunchInstance": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::aws-sdk:ec2:runInstances",
+        "Parameters": {
+          "ImageId.$": "$.ASGAndLaunchTemplate.BackupAMIId",
+          "InstanceType.$": "$.ASGAndLaunchTemplate.InstanceType",
+          "MinCount": 1,
+          "MaxCount": 1,
+          "KeyName": "2608",
+          "NetworkInterfaces": [
+            {
+              "DeviceIndex": 0,
+              "AssociatePublicIpAddress": false,
+              "SubnetId": "subnet-07421ec80815306eb",
+              "Groups": [
+                "sg-05b60de3ec6ca8e2d"
+              ]
+            }
+          ],
+          "IamInstanceProfile": {
+            "Arn": "arn:aws:iam::321468727688:instance-profile/Ec2instanceprofile"
+          }
+        },
+        "Next": "WaitForInstanceToRun",
+        "ResultPath": "$.LaunchInstance"
+      },
+      "WaitForInstanceToRun": {
+        "Type": "Wait",
+        "Seconds": 240,
+        "Next": "CheckInstanceState"
+      },
+      "CheckInstanceState": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:eu-west-1:321468727688:function:check-instance-state",
+        "Parameters": {
+          "InstanceId.$": "$.LaunchInstance.Instances[0].InstanceId"
+        },
+        "Next": "IsInstanceRunning",
+        "ResultPath": "$.CheckInstanceState"
+      },
+      "IsInstanceRunning": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.CheckInstanceState.system_status",
+            "StringEquals": "ok",
+            "Next": "SysprepInstance"
+          },
+          {
+            "Variable": "$.CheckInstanceState.system_status",
+            "StringEquals": "pending",
+            "Next": "WaitForInstanceToRun"
+          }
+        ],
+        "Default": "WaitForInstanceToRun"
+      },
+      "SysprepInstance": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:eu-west-1:321468727688:function:sysprep",
+        "Parameters": {
+          "InstanceId.$": "$.LaunchInstance.Instances[0].InstanceId"
+        },
+        "Next": "WaitForSysprep",
+        "ResultPath": "$.SysprepInstance"
+      },
+      "WaitForSysprep": {
+        "Type": "Wait",
+        "Seconds": 60,
+        "Next": "CreateAMI"
+      },
+      "CreateAMI": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::aws-sdk:ec2:createImage",
+        "Parameters": {
+          "InstanceId.$": "$.LaunchInstance.Instances[0].InstanceId",
+          "Name.$": "$.LaunchInstance.Instances[0].InstanceId"
+        },
+        "Next": "WaitForAMICreation2",
+        "ResultPath": "$.CreateAMI"
+      },
+      "WaitForAMICreation2": {
+        "Type": "Wait",
+        "Seconds": 5,
+        "Next": "CheckAMIState2"
+      },
+      "CheckAMIState2": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:eu-west-1:321468727688:function:check-ami-status-function",
+        "Parameters": {
+          "BackupAMIId.$": "$.CreateAMI.ImageId"
+        },
+        "Next": "IsAMIAvailable2",
+        "ResultPath": "$.CheckAMIState2"
+      },
+      "IsAMIAvailable2": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.CheckAMIState2.amiState",
+            "StringEquals": "available",
+            "Next": "updateASG"
+          },
+          {
+            "Variable": "$.CheckAMIState2.amiState",
+            "StringEquals": "pending",
+            "Next": "WaitForAMICreation2"
+          }
+        ],
+        "Default": "WaitForAMICreation2"
+      },
+      "updateASG": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:eu-west-1:321468727688:function:updateASG",
+        "Parameters": {
+          "ImageId.$": "$.CreateAMI.ImageId",
+          "AutoScalingGroupName.$": "$.ASGAndLaunchTemplate.AutoScalingGroupName",
+          "LaunchTemplateName.$": "$.ASGAndLaunchTemplate.LaunchTemplateName",
+          "LaunchTemplateId.$": "$.ASGAndLaunchTemplate.LaunchTemplateId",
+          "OriginalMaxCapacity.$": "$.ASGAndLaunchTemplate.OriginalMaxCapacity"
+        },
+        "Next": "SNSPublish",
+        "ResultPath": "$.updateASG"
+      },
+      "SNSPublish": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::sns:publish",
+        "Parameters": {
+          "TopicArn": "arn:aws:sns:eu-west-1:321468727688:ASGAMI",
+          "Message.$": "$"
+        },
+        "Next": "cleanup",
+        "ResultPath": "$.SNSPublish"
+      },
+      "cleanup": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:eu-west-1:321468727688:function:Cleanup",
+        "Parameters": {
+          "InstanceId.$": "$.LaunchInstance.Instances[0].InstanceId",
+          "AmiId.$": "$.ASGAndLaunchTemplate.BackupAMIId"
+        },
+        "End": true
+      }
+    }
+  }
