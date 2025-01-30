@@ -91,9 +91,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict:
         original_max_capacity = event.get('OriginalMaxCapacity')
 
         # Initialize AWS clients with config for retries
-        config = boto3.Config(retries={'max_attempts': 3})
-        ec2_client = boto3.client('ec2', config=config)
-        autoscaling_client = boto3.client('autoscaling', config=config)
+        #config = boto3.Config(retries={'max_attempts': 3})
+        ec2_client = boto3.client('ec2')
+        autoscaling_client = boto3.client('autoscaling')
 
         # Get current template version and AMI ID
         latest_version, current_ami_id = get_latest_template_version(
