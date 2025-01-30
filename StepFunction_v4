@@ -4,7 +4,7 @@
     "States": {
       "get-asg-and-launch-template": {
         "Type": "Task",
-        "Resource": "${LambdaArn}",
+        "Resource": "<LambdaArn>",
         "Parameters": {
           "backupJobId.$": "$.backupJobId",
           "setMaxCapacityEqualToDesiredCapacity": true
@@ -20,19 +20,19 @@
           "InstanceType.$": "$.ASGAndLaunchTemplate.InstanceType",
           "MinCount": 1,
           "MaxCount": 1,
-          "KeyName": "${KeyPairName}",
+          "KeyName": "<KeyPairName>",
           "NetworkInterfaces": [
             {
               "DeviceIndex": 0,
               "AssociatePublicIpAddress": false,
-              "SubnetId": "${SubnetId}",
+              "SubnetId": "<SubnetId>",
               "Groups": [
-                "${SecurityGroupId}"
+                "<SecurityGroupId>"
               ]
             }
           ],
           "IamInstanceProfile": {
-            "Arn": "${InstanceProfileArn}"
+            "Arn": "<InstanceProfileArn>"
           }
         },
         "Next": "WaitForInstanceToRun",
@@ -45,7 +45,7 @@
       },
       "CheckInstanceState": {
         "Type": "Task",
-        "Resource": "${LambdaArn}",
+        "Resource": "<LambdaArn>",
         "Parameters": {
           "InstanceId.$": "$.LaunchInstance.Instances[0].InstanceId"
         },
@@ -70,7 +70,7 @@
       },
       "SysprepInstance": {
         "Type": "Task",
-        "Resource": "${LambdaArn}",
+        "Resource": "<LambdaArn>",
         "TimeoutSeconds": 300,
         "Parameters": {
           "InstanceId.$": "$.LaunchInstance.Instances[0].InstanceId"
@@ -100,7 +100,7 @@
       },
       "CheckAMIState2": {
         "Type": "Task",
-        "Resource": "${LambdaArn}",
+        "Resource": "<LambdaArn>",
         "Parameters": {
           "BackupAMIId.$": "$.CreateAMI.ImageId"
         },
@@ -125,7 +125,7 @@
       },
       "updateASG": {
         "Type": "Task",
-        "Resource": "${LambdaArn}",
+        "Resource": "<LambdaArn>",
         "Parameters": {
           "ImageId.$": "$.CreateAMI.ImageId",
           "AutoScalingGroupName.$": "$.ASGAndLaunchTemplate.AutoScalingGroupName",
@@ -140,7 +140,7 @@
         "Type": "Task",
         "Resource": "arn:aws:states:::sns:publish",
         "Parameters": {
-          "TopicArn": "${SNSTopicArn}",
+          "TopicArn": "<SNSTopicArn>",
           "Message.$": "States.Format('AMI update completed. New AMI: {}. ASG: {}', $.CreateAMI.ImageId, $.ASGAndLaunchTemplate.AutoScalingGroupName)",
           "Subject": "ASG AMI Update Complete"
         },
@@ -149,7 +149,7 @@
       },
       "cleanup": {
         "Type": "Task",
-        "Resource": "${LambdaArn}",
+        "Resource": "<LambdaArn>",
         "Parameters": {
           "InstanceId.$": "$.LaunchInstance.Instances[0].InstanceId",
           "AmiId.$": "$.ASGAndLaunchTemplate.BackupAMIId"
