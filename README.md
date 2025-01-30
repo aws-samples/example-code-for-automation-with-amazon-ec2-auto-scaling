@@ -1,11 +1,17 @@
 ## My Project
 
-TODO: Fill this README out!
-
 Be sure to:
+* create lambda functions from given all the py files.
+* use ARN of created lambda function in stepfunction.
+* Change the value of below placeholder in stepfunction_v4. 
+    <LambdaArn>
+    <KeyPairName>
+    <SubnetId>
+    <SecurityGroupId>
+    <InstanceProfileArn>
+    <SNSTopicArn>
 
-* Change the title in this README
-* Edit your repository description on GitHub
+
 
 ## Security
 
